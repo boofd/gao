@@ -1,0 +1,49 @@
+一：自定义404页面
+＃修改nginx配置文件，自定义错误页面
+vim /usr/local/nginx/conf/nginx.conf
+找到包含404的注释行（默认是被注释的没有开启）
+＃error_page  404              /404.html;
+修改：error_page  404              /404.html;
+
+#修改后在这一行上面添加支持中文的代码
+charset utf-8;(中文)
+#重启服务
+systemctl restart /usr/local/nginx/sbin/nginx
+
+
+二：开启服务状态页面,开启status模块
+cd nginx-1.15.8
+./configure --with-http_ssl_module(支持网页数据加密) --with-http_stub_status_module(status模块支持网页状态信息)
+
+#重新编译
+make && make install
+
+#修改nginx配置文件,开启status模块
+vim /usr/local/nginx/conf/nginx.conf
+
+＃在＃error_page  404              /404.html;　上面添加内容
+location /status {
+                stub_status on;
+                 allow 192.168.2.0/24;（例：允许2.0网段所有人查看）
+                 deny all;（拒绝所有人访问）
+}(大括号不能少，成对出现)
+
+
+三：日志随着时间会积少成多．写一个切割日志脚本每周五自动切割备份日志
+#!/bin/bash
+
+#定义变量
+d=`date +%Y%m%d`(ｄ＝年月日)
+a=/usr/local/nginx/logs（a=日志目录路径）
+
+# 把旧的日志重命名
+mv $a/access.log $a/access-$d.log
+mv $a/error.log $a/error-$d.log
+
+#通知nginx执行，让nginx重新生成日志文件
+kill -10 $(cat $a/nginx.pid)
+保存完成　
+
+＃在命令行创建周期性任务　让日志每周五执行脚本完成日志分割
+crontab -e 
+03 03 * * 5 执行脚本
