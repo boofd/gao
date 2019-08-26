@@ -1,0 +1,23 @@
+SSH协议服务器（支持读写操作）
+服务端：
+#创建基于密码验证的SSH协议服务器
+yum -y install git-daemon
+
+#创建版本库
+git init --bare /var/git/仓库名
+
+#修改git服务配置
+vim /usr/lib/systemd/system/git@.service
+修改前内容如下：
+ExecStart=-/usr/libexec/git-core/git-daemon --base-path=/var/lib/git 
+--export-all --user-path=public_git --syslog --inetd –verbose
+修改后内容如下：
+ExecStart=-/usr/libexec/git-core/git-daemon --base-path=/var/git/仓库名 --user-path=public_git --syslog --inetd –verbose
+
+#重启服务（开机自启）
+systemctl restart git.socket
+systemctl enable git.socket
+
+客户端：
+将服务端的仓库内容克隆到本地
+git clone git://192.168.2.100/仓库名

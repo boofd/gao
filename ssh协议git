@@ -1,0 +1,62 @@
+git支持三种协议方式：ssh git http
+ssh协议ｇｉｔ详解
+一：选项作用
+clone:将服务器的文件克隆到本地工作区
+config:修改客户端的配置文件
+add . :将修改的文件名提交到缓存区
+commit :将本地的旧版本提交至本地仓库,工作区永远放最新的
+push :　将本地仓库的所有版本提交至远程服务器仓库
+
+二：
+#服务端：一般系统自带git
+yum -y install git
+
+#初始化仓库
+mkdir /var/git
+git init /var/git/(仓库名) --bare
+
+#客户端：克隆远程服务器仓库到本地(/var/git/仓库)
+git clone root@xxx:/var/git/仓库
+
+#进入本地仓库做增删改查
+cd /var/git/仓库
+git status (查看仓库文件)
+
+#提交到缓存区
+git add .
+
+#提交到本地仓库
+git commit -m "注释"
+
+＃修改配置文件
+git config --global user.name "你的名字"
+git config --global user.email 你的邮箱
+git config --global push.default simple（不在显示此提示消息，开始新习惯）
+
+#最后提交至远程服务器仓库
+git push
+
+#将远程仓库更新后的文件同步到本地仓库
+git pull
+
+三：
+HEAD指针是一个可以在任何分支和版本移动的指针，通过移动指针我们可以将数据还原至任何版本。没做一次提交操作都会导致git更新一个版本，HEAD指针也跟着自动移动
+
+git reflog (查看日志，每次更新的版本号，当前指针)
+git reset --hard xxxx(切换指针只需要前四位)
+
+四：Git支持按功能模块、时间、版本等标准创建分支，分支可以让开发分多条主线同时进行，每条主线互不影响
+
+#创建分支
+git branch 名字
+
+#查看分支
+git branch -v
+
+#切换分支
+git checkout 名字
+
+#将指定分支的数据内容合并到（当前）分支
+git merge 名字
+
+

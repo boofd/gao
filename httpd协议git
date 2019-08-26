@@ -1,0 +1,15 @@
+HTTP协议服务器（只读操作的服务器）
+＃安装gitweb、httpd软件包(服务端操作)
+yum -y install httpd gitweb
+
+#修改gitweb配置文件,11行添加内容
+vim +11 /etc/gitweb.conf
+#分享/var/git/下的仓库内容
+$projectroot = "/var/git"
+
+＃重启httpd服务
+systemctl restart httpd
+
+#客户端访问
+192.168.xx:xx/git
+
