@@ -1,0 +1,31 @@
+mariadb是mysql的分支　MySQL之父Michael先生　开源免费
+
+数据和表定义文件（.frm）是二进制兼容的
+有客户端API、协议和结构都是完全一致的
+所有文件名、二进制、路径、端口等都是一致的
+所有的MySQL连接器，比如PHP、Perl、Python、Java、.NET、MyODBC、以及MySQL C 等在MariaDB中都保持不变
+mysql-client包在MariaDB服务器中也能够正常运行
+共享的客户端库与MySQL也是二进制兼容的
+在大多数情况下，你完全可以卸载MySQL然后安装MariaDB，然后就可以像之前一样正常的运行
+
+与MySQL 相比较，MariaDB 更强的地方在于：
+Maria 存储引擎
+PBXT 存储引擎
+XtraDB 存储引擎
+FederatedX 存储引擎
+更快的复制查询处理
+线程池
+更少的警告和bug
+运行速度更快
+＃更多的Extensions (More index parts, new startup options etc)
+更好的功能测试
+数据表消除
+慢查询日志的扩展统计
+支持对Unicode 的排序
+
+DBEdit一个免费的MariaDB数据库和其他数据库管理应用程序。
+　　Navicat一系列Windows、Mac OS X、Linux下专有数据库管理应用程序。
+　　HeidiSQL一个Windows上自由和开放源码的MySQL客户端。它支持MariaDB的5.2.7版本和以后的版本。[5][6] 
+　　phpMyAdmin一个基于网络的MySQL数据库管理应用程序
+　　
+　　
