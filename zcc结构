@@ -1,0 +1,26 @@
+配置　1.主　2.（主／从）　3.从　结构
+
+1.配置数据库主服务器
+准备三台数据库服务器(192.168.4.51)/52/53 一台客户端192.168.4.50
+1.1 vim /etc/my.cnf  配置51主
+[mysql] 下添加
+server_id=51 #(指定服务器id)
+log_bin='master51' #指定日志文件名字
+
+1.2 grant replication slave on *.* to rupluser@'%' identified by '123qqq.A'
+#添加授权用户    
+show master status  (查看当前使用的日志信息）
+2.配置从数据库　52
+2.1 vim /etc/my.cnf
+[mysql] 下添加
+server_id=52 #(指定服务器id)
+2.2　确保主从数据库数据一致
+2.2　指定主库信息；change master to
+master_host='192.168.4.51', #指定主库ip
+master_user='rupluser', #指定授权用户
+master_password='123qqq.A', #指定密码
+master_log_file='master51.000001', #指定bin-log日志名
+master_log_pos=154; #指定主库日志的偏移量
+2.4　start slave #开启slave进程
+2.5 show slave status # 查看slave状态
+
