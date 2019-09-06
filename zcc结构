@@ -1,4 +1,4 @@
-配置　1.主　2.（主／从）　3.从　结构
+配置主从从结构　51号机为主，52号机既为53号机的主，又为52号机的从，实现双主，一台主库宕机还有一台主库给从库同步数据
 
 1.配置数据库主服务器
 准备三台数据库服务器(192.168.4.51)/52/53 一台客户端192.168.4.50
@@ -10,7 +10,7 @@ log_bin='master51' #指定日志文件名字
 1.2 grant replication slave on *.* to rupluser@'%' identified by '123qqq.A'
 #添加授权用户    
 show master status  (查看当前使用的日志信息）
-2.配置从数据库　52
+2.配置从数据库　(192.168.4.52)
 2.1 vim /etc/my.cnf
 [mysql] 下添加
 server_id=52 #(指定服务器id)
@@ -22,5 +22,34 @@ master_password='123qqq.A', #指定密码
 master_log_file='master51.000001', #指定bin-log日志名
 master_log_pos=154; #指定主库日志的偏移量
 2.4　start slave #开启slave进程
-2.5 show slave status # 查看slave状态
+2.5 show slave status # 查看slave状态　#查看io_slave /sql_slave　两个是否为yes状>态不是yes为配置失败
 
+3. 配置主数据库 (192.168.4.52)
+vim /etc/my.cnf 
+log_bin='master52' 指定日志文件名
+log_slave_updates #级联设置
+
+3.2 grant replication slave on *.* to rupluser@'%' identified by '123qqq.A';
+#创建授权用户
+
+4.配置从数据库　(192.168.4.53)
+4.1 vim /etc/my.cnf 
+server_id=53 #指定服务器ID
+
+4.2 确保主从服务器数据一致
+4.3 指定主库信息
+change master to 
+master_host='192.168.4.52', #指定主库ip
+master_user='rupluser', #指定授权用户
+master_password='123qqq.A', #指定密码
+master_log_file='master52.000001', #指定bin-log日志名
+master_log_pos=154; #指定主库日志的偏移量
+4.4　start slave #开启slave进程
+4.5 show slave status # 查看slave状态 #查看io_slave /sql_slave　两个是否为yes状态不是yes为配置失败
+
+5.客户端测试 
+5.1 grant all on *.* to ted@'%' identified by '123qqq.A';
+#主库51号机创建一个客户端可以登录进行增删改查的授权用户
+
+5.2 mysql -h192.168.4.51 -uted -p123qqq.A 
+#客户端50号机登录进行增删改查 查看主从从三台机器是否同步数据
