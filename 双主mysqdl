@@ -1,0 +1,55 @@
+实现互为主从数据库服务器
+客户端 192.168.4.50
+主：192.168.4.51
+主: 192.168.4.52
+
+1. 配置主:192.168.4.51
+1.1 vim /etc/my.cnf
+[mysqld]下面添加
+server_id=51
+log_bin='master51'
+
+1.2 进入数据库创建授权用户
+grant replication slave on *.* to rupluser@'%' identifiedby '123qqq.A'
+
+2.配置从：192.168.4.52
+1.vim /etc/my.cnf
+[mysqld]下添加指定
+server_id=52
+bin_log='master52'
+
+2.1 确保主从数据库数据一致
+
+2.2　进入mysql中指定主库信息
+change master to
+master_host='192.168.4.51',
+master_user='rupluser',
+master_password='123qqq.A'
+master_log_file='master51.000001',
+master_log_pos=154;
+
+2.3 start slave; #开启slave
+2.4 show slave status; #查看slave状态信息
+
+3.配置主库信息 192.168.4.52
+3.1.vim /etc/my.cnf
+[mysqld]下添加指定
+server_id=52
+bin_log='master52'
+
+3.2　进入mysql中创建授权用户
+grant replication slave on *.* to rupluser@'%' identified by '123qqq.A';
+
+4.配置从库信息:192.168.4.51
+4.1确认主从数据一致
+4.2进入mysql中指定主库信息
+change master to
+master_host='192.168.4.51',
+master_user='rupluser',
+master_password='123qqq.A'
+master_log_file='master51.000001',
+master_log_pos=154;
+4.3　tart slave; #开启slave
+4.4　show slave status; #查看slave状态
+
+实现192.168.4.51　192.168.4.52　互为主从结构
