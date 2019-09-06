@@ -1,0 +1,40 @@
+实现mysql多实例（可以一套服务器多个虚拟机，提高硬件利用率，节约成本)
+1.安装依赖包 yum -y install libaio
+2.mv mysql-5.7.20-linux_x84_64 /usr/local/mysql
+＃ (将源码包移动到/usr/local/下并改名为mysql )
+vim /etc/bashrc
+export PATH=/usr/local/mgsql/bin:$PATH　
+＃系统配置文件中永久设置全局变量
+
+3.编辑主配置文件 vim /etc/my.cnf
+[mysqld_multi] #启用多实例
+mysqld=/usr/local/mysql/bin/mysql_safe　（指定进程文件路径）
+mysqladmin=/usr/local/mysql/bin/mysqladmin (指定管理命令进程）
+user=root　指定开启进程的用户
+
+[mysqld1]　＃实例进程名称
+port=3307  #端口号
+datadir=/dir1　/指定数据库目录,需要手动创建
+socket=/dir1/mysqld1.sock　#指定sock文件的路径和名称
+pid-file=/dir1/mysqld1.pid  #指定pid进程号的存在路径
+log-error=/dir1/mysqld1.err #指定错误日志的位置
+
+搭建一台服务器两个数据库，所以要在创建一个实例
+[mysqld2]　＃实例进程名称
+port=3308  #端口号
+datadir=/dir2　/指定数据库目录，需要手动创建
+socket=/dir2/mysqld2.sock　#指定sock文件的路径和名称
+pid-file=/dir2/mysqld2.pid  #指定pid进程号的存在路径
+log-error=/dir2/mysqld2.err #指定错误日志的位置
+
+4.创建数据库目录
+mkdir /dir1 /dir2
+
+5.mysqld_multi start 1 #启动多实例1
+mysqld_multi start 2 启动多实例2
+会显示警告信息　最后一行会显示初始密码
+
+6.6.1 mysql -uroot -pxxxxx -S /dir1/mysqld1.sock ＃使用账号密码登录实例数据库
+6.2 alter user user() identified by '123456';　＃修改初始密码
+6.3. mysql -uroot -pxxxxx -S /dir2/mysqld2.sock
+6.4 alter user user() identified by '123456';

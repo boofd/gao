@@ -1,0 +1,77 @@
+配置mysql读写分离
+1.先搭建一主一从结构192.168.4.51(主) 192.168.4.52(从) 192.168.4.57(maxscale代理)
+ 192.168.4.50(客户端)
+
+2.搭建192.168.4.57 部署maxscale 代理服务器
+yum -y install maxscale-2.1.2-1x84_64.rpm
+3.修改主配置文件 vim /etc/maxscale.cnf
+[maxscale]
+threads=auto #运行的线程数
+
+[server1] #定义的数据库服务器
+type=server
+address=192.168.4.51 #主服务器ip
+port=3306　端口
+protocol=MySQLBackend
+
+[server２] #定义的数据库服务器
+type=server
+address=192.168.4.52 #从服务器ip
+port=3306
+protocol=MySQLBackend
+
+[MySQL Monitor] #定义监控的数据库服务器
+type=monitor
+module=mysqlmon
+servers=server1, server2 #监控的数据库列表，不能写ip
+user=maxs #监控用户可以自定义名称
+passwd=123qqq.A ＃监控用户的密码
+monitor_interval=10000
+
+#[Read-Only Service]        //不定义只读服务所以注释掉，要的是读写服务
+#type=service
+#router=readconnroute
+#servers=server1
+#user=myuser
+#passwd=mypwd
+#router_options=slave
+
+[Read-Write Service]            //定义读写分离服务
+type=service
+router=readwritesplit
+servers=server1,server2  #读写数据库列表
+user=maxd  #路由用户
+passwd=123qqq.A　＃密码
+max_slave_connections=100%
+
+[MaxAdmin Service] #定义maxscale管理服务
+type=service
+router=cli
+
+#[Read-Only Listener]        //不定义只读服务使用的端口号
+#type=listener
+#service=Read-Only Service
+#protocol=MySQLClient
+#port=4008
+
+[Read-Write Listener]            //定义读写服务使用的端口号
+type=listener
+service=Read-Write Service
+protocol=MySQLClient
+port=4006
+
+[MaxAdmin Listener]        //管理服务使用的端口号
+type=listener
+service=MaxAdmin Service
+protocol=maxscaled
+socket=default
+port=4016 #指定端口号
+
+4.根据maxscale.cnf文件配置，在主／从服务器上添加对应的授权用户，因为2太数据服务器是主从同步结构，只在主数据库服务器添加用户即可，从服务器会自动同步
+主51：mysql> grant replication slave,replication client on *.* to  maxscalemon@'%' identified by "123qqq…A"; //授权监控用户
+
+mysql> grant select on mysql.* to maxscalerouter@"%" identified by "123qqq…A"; //授权路由用户
+
+5.maxscale -f /etc/maxscale.cnf 读取配置文件启动服务
+6.maxadmin -uadmin -pmariadb -P4016 #查看监控状态信息
+7.主数据库授权客户端用户　客户端登录测试
