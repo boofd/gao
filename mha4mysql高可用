@@ -1,0 +1,143 @@
+搭建MHAmysql高可用集群,需要两个程序　使用perl脚本语言编写
+1.MHA manager 管理数据的节点 管理所有的数据库，也可以单独部署在一台服务器，或者直接部署在某个数据库服务器上
+2.MHA node　数据库节点　存储数据的mysql服务器，运行在每台数据库服务器上
+
+MHA manager工作过程：有manager定时检测集群中的master节点，当master节点故障是，自动将拥有最新数据的slave节点提升为master
+
+1.部署环境
+yum -y install perl-* 192.168.4.50(客户端） 192.168.4.51(数据服务器) 192.168.4.52（数据服务器） 192.168.4.53（数据服务器） 192.168.4.57(manager服务器管理节点)
+
+2.配置密钥，使四台服务器之间可以无密码链接 
+51:ssh-keygen  ssh-copy-id 192.168.4.52/192.168.4.53
+52:ssh-keygen  ssh-copy-id 192.168.4.53/192.168.4.51
+53:ssh-keygen  ssh-copy-id 192.168.4.51/192.168.4.52
+57:ssh-keygen  ssh-copy-id 192.168.4.51/192.168.4.52/192.168.4.53
+
+3.配置一主多从结构数据库
+51(主)：vim /etc/my.cnf　server_id=51 log_bin='master51' wq保存退出 进入数据库mysql -uroot -p123qqq.A 
+#创建授权用户 :grant replication slave on *.* to repluser@'%' identified by '123qqq.A'
+
+52(从) vim /etc/my.cnf server_id=52 log_bin='master52' wq保存退出 
+确认主从数据库数据一致  进入数据库 mysql -uroot -p123qqq.A 
+指定主库信息：change master to master_host='192.168.4.51',master_user='repluser',master_password='123qqq.A',master_log_file='master51.000001',master_log_pos=154;
+开启slave	:start slave;
+查看状态	:show slave status;
+
+53(从)vim /etc/my.cnf server_id=53 log_bin='master53' wq保存退出
+确认主从数据库数据一致  进入数据库 mysql -uroot -p123qqq.A
+指定主库信息：change master to master_host='192.168.4.51',master_user='repluser',master_password='123qqq.A',master_log_file='master51.000001',
+master_log_pos=154;
+开启slave       :start slave;
+查看状态        :show slave status;
+
+4.4.1	安装manager -node软件包 yum -y install mha4mysql-node-0.56-0.el6.noarch.rpm
+4.2	cd /mha4mysql-manager-0.56 
+4.3	perl Makefile.PL    
+4.4	make && make install
+
+5.拷贝主配置文件模板，修改主配置文件
+5.1	mkdir /etc/mha
+5.2	cp /mha4mysql-manager-0.56/smaple/conf/app1.cnf /etc/mha
+5.3	vim /etc/mha
+[server default]     //管理服务默认配置
+                manager_workdir=/etc/mha    //工作目录
+                manager_log=/etc/mha/manager.log   //日志文件
+                master_ip_failover_script=/etc/mha/master_ip_failover //故障切换脚本
+                 ssh_user=root  //访问ssh服务用户
+                 ssh_port=22    //ssh服务端口
+                 repl_user=repluser           //主服务器数据同步授权用户
+                 repl_password=123qqq.A    //密码
+                 user=root                   //监控用户
+                 password=123qqq.A               //密码
+        [server1]   //指定第1台数据库服务器
+hostname=192.168.4.51    //服务器ip地址
+port=3306                //服务端口
+candidate_master=1               //竞选主服务器
+[server2]  //指定第2台数据库服务器
+hostname=192.168.4.52
+port=3306
+candidate_master=1  
+            
+[server3]  //指定第3台数据库服务器
+hostname=192.168.4.53
+port=3306
+candidate_master=1
+:wq
+
+5.4	在主数据库服务器上创建vip地址
+ifconfig eth0:1 192.168.4.100
+
+5.5	创建故障脚本
+vim /etc/mha/master_ip_failover
+my $vip = '192.168.4.100/24';  # Virtual IP  //定义VIP地址
+my $key = "1"; //定义变量$key
+my $ssh_start_vip = "/sbin/ifconfig eth0:$key $vip"; //部署vip地址命令
+my $ssh_stop_vip = "/sbin/ifconfig eth0:$key down"; //释放vip地址命令
+:wq
+
+6.1	配置数据库节点　51.52.53分别安装manager-node(这里以51为例)
+yum -y install manager-node
+6.2	51.52.53分别创建数据库同步用户,51已经创建，这里以192.168.4.52为例
+grant replication slave on *.* to repluser@'%' identified by '123qqq.A'
+6.3	51.52.53分别创建监控服务器状态用户,这里以51为例
+grant all on *.* to root@'%' identified by '123qqq.A'
+
+7.	51.52.53分别修改服务器运行参数 这里以51为例
+vim /etc/my.cnf
+[mysqld]
+plugin-load="rpl_semi_sync_master=semisync_master.so;rpl_semi_sync_slave=semisync_slave.so" //加载模块
+rpl_semi_sync_master_enabled=1  //启用master模块
+rpl_semi_sync_slave_enabled=1     //启用slave模块
+relay_log_purge=0   //禁止自动删除中继日志文件
+:wq
+	重启服务 systemctl restart mysqld
+
+8.	测试配置
+8.1	测试ssh配置	masterha_check_ssh --conf=/etc/mha/app1.cnf
+8.2	测试主从同步	masterha_check_repl --conf=/etc/mha/app1.cnf
+
+9.	启动管理服务
+9.1	masterha-manager --conf=/etc/mha/app1.cnf  --remove_dead_master_conf --ignore_last_failove
+							删除宕机主库的配置	忽略xxx.health文件
+
+10.	查看服务状态
+masterha_check_status --conf=/etc/mha/app1.cnf	查看服务状态
+
+11.	测试集群主从配置是否正常
+11.1	主数据库51创建同步授权用户　
+grant all on *.* to ghz@'%' identified by '123qqq.A';
+11.2	客户端50　登录vip地址访问集群
+ mysql -h192.168.4.100 -ughz -p123qqq.A 	进行增删改查　查看52.53是否同步数据
+
+12.	测试集群高可用状态
+12.1	模仿数据库宕机，192.168.4.51主库关闭数据库服务，查看vip地址是否变更
+systemctl stop mysqld 
+	查看192.168.4.52的eth0:1网卡
+ifconfig eth0:1 查看vip地址是否更换到192.168.4.52主机
+	查看192.168.4.57管理服务的配置文件是否删除192.168.4.51的配置
+cat /etc/mha/app1.cnf
+
+13.1	恢复51号，从新配置加入集群，成为52号主库的从库
+systemctl restart mysqld	重启服务器
+	确认与当前主库52号机数据同步
+	指定主库52号机信息
+master change to master_host='192.168.4.72',master_user='repluser',master_password='123qqq.A',master_log_file='master72.000001',master_log_pos=154;
+start slave;			开启slave
+show slave status; 		查看slave状态
+
+13.2　	配置管理服务器57号机的配置文件
+vim /etc/mha/app1.cnf
+ [server1 ]
+hostname=192.168.4.51
+port=3306
+candidate_master=1
+:wq
+
+14.	测试集群环境
+masterha_check_ssh --conf=/etc/mha/app1.cnf
+masterha_check_repl --conf=/etc/mha/app1.cnf
+
+15.	重启服务区
+15.1	关闭服务	masterha_stop  --conf=/etc/mha/app1.cnf
+15.2	开启服务	masterha_manager --conf=/etc/mha/app1.cnf --remove_dead_master_conf --ignore_last_failover
+15.3	查看状态	masterha_check_status --conf=/etc/mha/app1.cnf

@@ -1,0 +1,140 @@
+	PXC特点
+数据强一致性，无延迟同步
+不需要配置主从配置，无需使用虚拟ip
+支持innodb存储引擎
+多线程复制
+部署简单
+支持节点自动加入，无需手动操作
+
+开启服务后的相应端口
+3306	数据库服务端口
+4444	ＳＳＴ端口　	只有在全量同步的时候才会显示此端口
+4567　	集群通信端口
+4568	IST端口　　	只有在增量同步的时候才会显示此端口
+
+1.准备三台服务器	配置主机映射,这里以71为例
+vim /etc/hosts
+192.168.4.71	pxcnode71
+192.168.4.72	pxcnode72
+192.168.4.73	pxcnode73
+
+2.部署PXC
+2.1	软件介绍
+percona-xtrabackup-24-2.4.13- 	在线热备程序（强一致数据同步）
+qpress-1.1-14.11.x86_64.rpm	递归压缩程序
+percona-XtraDB-Cluster-server	集群服务程序
+2.2	软件包安装，pxcnode71.pxcnode72.pxcnode73需要都安装，这里以71为例
+	#必须按照此安装顺序解决依赖关系
+cd /root/PXC
+rpm -ivh libev-4.15-1.el6.rf.x86_64.rpm
+yum  -y  install  percona-xtrabackup-24-2.4.13-1.el7.x86_64.rpm
+rpm -ivh qpress-1.1-14.11.x86_64.rpm
+tar -xvf  Percona-XtraDB-Cluster-5.7.25-31.35-r463-el7-x86_64-bundle.tar
+yum -y  install  Percona-XtraDB-Cluster-*.rpm
+
+3.	修改mysqld.cnf文件
+3.1　	修改服务器192.168.4.71
+vim /etc/percona-xtradb-cluster.conf.d/mysqld.cnf
+[mysqld]
+server-id=71        
+3.2	修改服务器192.168.4.72
+vim /etc/percona-xtradb-cluster.conf.d/mysqld.cnf
+[mysqld]
+server-id=72
+3.3	修改服务器192.168.4.73
+vim /etc/percona-xtradb-cluster.conf.d/mysqld.cnf
+[mysqld]
+server-id=73
+
+4.	修改wsrep.cnf文件
+4.1	修改192.168.4.71服务器配置
+vim /etc/percona-xtradb-cluster.conf.d/wsrep.cnf
+wsrep_cluster_address=gcomm://192.168.4.72,192.168.4.73,192.168.4.71//成员列表
+wsrep_node_address=192.168.4.71 //本机ip
+wsrep_cluster_name=pxc-cluster //集群名
+wsrep_node_name=pxcnode71 //本机主机名
+wsrep_sst_auth="sstuser:123qqq.A" //SST数据同步授权用户及密码
+:wq
+4.2	修改192.168.4.72服务器配置
+vim /etc/percona-xtradb-cluster.conf.d/wsrep.cnf
+wsrep_cluster_address=gcomm://192.168.4.71,192.168.4.73,192.168.4.72//成员列表
+wsrep_node_address=192.168.4.72 //本机ip
+wsrep_cluster_name=pxc-cluster //集群名
+wsrep_node_name=pxcnode71 //本机主机名
+wsrep_sst_auth="sstuser:123qqq.A" //SST数据同步授权用户及密码
+:wq
+4.3	修改192.168.4.73服务器配置
+vim /etc/percona-xtradb-cluster.conf.d/wsrep.cnf
+wsrep_cluster_address=gcomm://192.168.4.71,192.168.4.72,192.168.4.73//成员列表
+wsrep_node_address=192.168.4.73 //本机ip
+wsrep_cluster_name=pxc-cluster //集群名
+wsrep_node_name=pxcnode71 //本机主机名
+wsrep_sst_auth="sstuser:123qqq.A" //SST数据同步授权用户及密码
+:wq
+
+5.	启动服务
+5.1	systemctl  start mysql@bootstrap.service  //启动集群服务
+5.2	 grep pass /var/log/mysqld.log    	 //查看数据库管理员初始登录密码
+5.3	mysql –uroot –p’ W.HiOb8(ok)_’		 //使用初始密码登录
+5.4　	Mysql> alter user  root@”localhost” identified by “123456”;//修改登录密码
+5.5	mysql –uroot –p123456 //使用修改后的密码登录
+5.6	garnt reload, lock tables,replication client,process on *.*  to
+sstuser@"localhost” identified by  “123qqq.A”; //添加授权用户
+5.7	pxcnode72 ~]# systemctl  start mysql  //启动192.168.4.72数据库服务
+5.8	pxcnode73 ~]# systemctl  start mysql  //启动192.168.4.73数据库服务
+
+6.	测试集群同步
+6.1 	71号机添加访问数据的链接用户
+mysql -uroot -p123456
+grant all on *.* to ghz@'%' identified by '123456';
+6.2	客户端连接集群存取数据 （连接任意一台数据库服务器的ip地址都可以）
+连接数据服务器主机73
+mysql -h192.168.4.73 -ughz -p123456
+6.3	客户端链接主机71.72　查看是否同步
+mysql -h192.168.4.71 -ughz -p123456
+mysql -h192.168.4.72 -ughz -p123456
+
+7.测试集群高可用与故障自动恢复
+模仿宕机关闭任意一台数据库服务器　	关闭72号服务器器
+72号机：	killall -9 mysqld 		杀死mysqld进程
+客户端：	mysql -h192.168.4.71 -ughz -p123456
+		create database gaohuaizhi;
+72号机恢复：	systemctl restart mysql
+		mysql -uroot -p123456
+查看72号机是否自动加入集群，是否增量同步数据	show databases;
+
+二：数据库存储引擎
+1.1	修改服务存储引擎
+vim /etc/my.cnf
+[mysqld]
+default-storage-engine=myisam
+systemctl restart mysqld
+
+1.2	建表时指定表的存储引擎
+create table db10.a (name char(10))engine=innodb;
+
+1.3	修改表的存储引擎
+alter table db10.a engine=innodb
+alter table db10.c engine=innodb
+
+myisam存储引擎　支持表级锁
+不支持事务，事务回滚，外键
+
+事务特性
+Atomic：	原子性
+事务的整个操作是一个整体，不可分割，要么全部成功，要么全部失败
+
+Consistency	一致性
+实务操作的前后，事务的记录没有变化
+
+lsolation	隔离性
+实务操作是相互隔离不受影响的
+
+Durability	持久性
+数据一旦提交，不可改变，永久改变表数据
+
+show variables like "%auto%";	查看自动提交功能
+set autocommit=off		关闭自动提交（本次本机链接有效）
+set autocommit=on		开启自动提交
+commit				修改完数据后可以用此命令手动提交
+rollback			回滚：没有永久提交可以用此命令返回上一步
