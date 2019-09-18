@@ -1,0 +1,44 @@
+set a 18 # set 变量名　值
+get a 	 #查看变量
+keys *	 #查看当前存储的变量数据
+mset a 10 b 20 #set 变量　值　变量　　值　　存储多个变量值
+mget a b #查看多个变量的值
+select 1 #切换库　默认16个0-15
+keys ? 	 #查看变量,一个?代表变量的一个字符
+exists a #检查变量是否存在，1为是　0为否
+ttl a	 #查看变量生存时间
+move a 2 #将变量a移动至2库
+type a	 #查看变量的存储类型
+del a	 #删除变量
+save	 #保存
+flushall #删除内存里所有变量数据
+flushdb	 #删除所在库内所有变量数据
+set a 10 ex 20	#set 变量名　值　存在时间　值　添加变量Ａ值10　存在20秒
+set a 10 px 20	#创建变量a存在20毫秒
+strlen a	#统计变量值长度
+setrange a 6 123#修改变量值第六位后为123
+set a 10        append a 10       get a = 1010 append#存在则追加，不存在则创建
+incr a 	#自+1
+incrby a 1	#加任意整数值
+incrbyfloat a 1.5	#加任意小数点值
+getrange a 4 7	#显示第五位-第八位
+getrange a -7 -1#显示倒数第7位-倒数第1位
+decr a 	#自-1　存在则减一　不存在则初始为0在减一
+decby a 2 	#减去任意整数值
+lpush w ghz gao huai zhi	#给一个变量赋予多个值
+lrange w 0 -1 	#显示第一个值到最后一个值
+lpop w	#删除表头数值，可以多次执行
+llen w	#查看变量值长度
+lindex w 1	#查看变量中第一个值
+lset w 3 2	#将变量中第四个值修改为2
+rpush w a 	＃将值ａ插入变量的末位
+rpop w	#将变量中末尾的值删除
+
+hash表是string类型的字段和值的映射表，一个变量拥有多个字段，一个字段对应一个值
+hset ywzd name dmy 	#创建变量ywzd 字段name 值dmy
+hget ywzd name 	＃查看变量ywzd的name字段的值
+hmset ywzd age 16 yaer 2016	#给变量ywzd添加字段age 值16 添加字段year　值2016hmget ywzd age year 	#查看变量中age 与　year　两个字段
+hkeys ywzd	#查看变量中的所有字段
+hgetall ywzd	#查看变量中所有字段及相对应的值
+hvals ywzd	＃查看变量中的所有值
+hdel ywzd name age 	#删除变量中的多个字段

@@ -1,0 +1,40 @@
+redis主从赋值结构模式
+一主一从
+一主多从
+主从从
+
+主从工作原理：
+	slave向master发送sync命令
+	master启动后台存盘进程，并收集所有修改数据命令
+	master完成后台存盘后，传送整个数据文件到slave
+	slave接收文件数据，加载到内存中完成首次完全同步
+	后续有新数据产生时，master继续收集数据修改命令依次传给slave，完成同步
+
+配置带验证的主从结构	两台服务器	主：192.168.4.51	从：192.168.4.52
+	redis服务运行后，默认都是master服务器	info replication//查看赋值信息
+
+配置主库添加密码	vim +501 /etc/redis/6379.conf
+		requirepass 123456
+
+配置从库52:	redis-cli -h 192.168.4.52 -p 6352
+		slaveof 192.168.4.51 6351 //命令行配置指定主库
+		config set masterauth 123456 //命令行指定链接主库密码
+
+修改配置文件永久配置	vim +282 /etc/redis/6379.conf
+			slaveof 192.168.4.51 6351
+		289行： masterauth 123456
+
+哨兵服务：
+	监视master服务器
+	发现master宕机后，将从服务器升级为主服务器
+	主配置文件	sentinel.conf
+	模板文件	redis-4.0.8/sentinel.conf
+
+配置哨兵服务　：192.168.4.57
+修改配置文件	vim /etc/sentinel.conf
+	bind 0.0.0.0 哨兵服务地址
+	sentinel monitor redis51(主机名自定义) 192.168.4.51(master主机ip地址) 6351(master主机redis服务端口) 1(哨兵服务器个数)
+	sentinel auth-pass redis51 123456 (链接服务密码)
+启动服务	redis-sentinel /etc/sentinel.conf
+
+宕机51查看52是否替换为master
