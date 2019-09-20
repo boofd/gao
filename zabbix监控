@@ -1,0 +1,166 @@
+zabbix是一个高度集成的监控解决方案
+可以实现企业级的开源分布式监控，zabbix通过c/s模式取集监控数据，zabbix通过b/s模式实现web管理
+1.准备监控服务器 192.168.2.5 部署lnmp，支持zabbix动态信息
+1.1安装nginx及其依赖包
+	yum -y install gcc pcre-devel zlib-devel opemssl-devel
+	tar -xf nginx-1.12.tar.gz
+	cd nginx-1.12
+	./configure --with-http_ssl_module
+	make && make install
+	yum -y install php php-mysql mariadb mariadb-server mariadb-devel#安装数据库,php解析的相关相关软件包
+	yum -y install php-fpm 安装php链接mysql的依赖包
+
+1.2修改nginx配置
+vim /usr/local/nginx/conf/nginx.conf
+	location ~ \.php$ {
+            root           html;
+            fastcgi_pass   127.0.0.1:9000;
+            fastcgi_index  index.php;
+        #    fastcgi_param  SCRIPT_FILENAME  /scripts$fastcgi_script_name;
+            include        fastcgi.conf;
+        }
+#开启动态网页解析
+
+1.3启动服务
+	systemctl restart mariadb
+	systemctl start php-fpm
+
+1.4测试页面
+	vim /usr/local/nginx/html/test.php
+	<?php
+	$i=33;
+	echo $i;
+	?>
+firefox 192.168.2.5/test.php
+
+2.部署zabbix
+2.1安装源码zabbix
+	yum -y install net-snmp-devel  curl-devel libevent-devel
+	tar-xf zabbix-3.4.4.tar.gz
+	cd zabbix-3.4.4
+	./configure --enable-server 	#安装部署zabbix服务端软件
+	--enable-proxy			#安装zabbix代理相关软件
+	--enable-agent			#此处安装代表也监视本机状态
+	--with-mysql=/usr/bin/mysql_config#配置mysql-config相关路径
+	--with-net-snmp			#允许通过snmp协议监控其他设备
+	--with-libcurl			#安装curl相关软件,zabbix可以通过curl链接http等
+	make install
+	ls /usr/local/etc		#查看是否安装成功，是否有zabbix配置文件
+	ls /usr/local/bin
+	ls /usr/local/sbin
+	
+3.初始化准备
+3.1创建数据库与数据库账户
+	mysql
+	create database zabbix character set utf8;#创建库zabbix支持中文
+	grant all on zabbix.* to zabbix@'localhost' identified by 'zabbix';
+	#授权访问数据库用户zabbix,密码zabbix
+	cd zabbix-3.4.4/database/mysql
+	mysql -uzabbix -pzabbix zabbix < schema.sql	#将文件内容导入数据库
+	mysql -uzabbix -pzabbix zabbix < images.sql
+ 	mysql -uzabbix -pzabbix zabbix < data.sql	#一定注意导入顺序
+
+3.2上线zabbix监控状态页面
+	cd zabbix-3.4.4/frontends/php
+	cp -a * /usr/local/nginx/html
+	chmod -R 777 /usr/local/nginx/html/*	#页面内容随时改变需要同步到数据库，需要对数据库的内容有所有权限
+
+3.3修改nginx配置
+	vim /usr/local/nginx/conf/nginx.conf
+	http{
+	fastcgi_buffers 8 16k;
+	fastcgi_buffer_size 32k;
+	fastcgi_connect_timeout 300;
+	fastcgi_send_timeout 300;
+	fastcgi_read_timeout 300;
+	}
+	/usr/local/nginx/sbin/nginx -s reload
+
+3.4．安装依赖软件
+	cd /root
+	yum -y install php-gd php-xml php-ldap
+	yum -y install php-bcmath php-mbstring
+
+3.5修改php配置文件
+	vim /etc/php.ini
+	date.timezone = Asia/Shanghai	#设置时区
+	max_execution_time = 300	#最大执行时间，秒
+	post_max_size =32M 		#post数据最大容量
+	max_input_time =300		#服务器接收数据的时间限制
+3.6.重启服务
+	systemctl restart php-fpm
+
+4.初始化网页
+4.1浏览器访问web页面
+	firefox 192.168.2.5/index.php	#查看是否全部为OK，需要全部显示为OK，否则为过程配置错误
+4.2根据提示修改数据库信息
+	password=zabbix
+4.3默认登录账户admin,默认密码zabbix
+
+5.启动zabbix服务
+5.1修改配置文件
+	vim /usr/local/etc/zabbix_server.conf
+	DBHost=localhost		#数据库主机
+	DBName=zabbix			#设置数据库名称
+	DBUser=zabbix			#设置数据库账户
+	DBPassword=zabbix		#设置数据库密码
+	LogFile=/tmp/zabbix/server.log	#设置日志
+5.2创建用户，否则无法启动服务
+	useradd zabbix
+5.3启动服务
+	zabbix_server
+5.4查看端口	
+	netstat -ntulp | grep "1005
+
+Zabbix监控基础
+
+1 配置被监控主机　192.168.2.100
+	yum -y install gcc pcre-devel
+	tar -xf zabbix-3.4.4.tar.gz
+	cd zabbix-3.4.4
+	./configure --enable-agent
+	make install
+1.1　查看是否有配置文件是否安装成功
+	ls /usr/local/etc/
+	ls /usr/local/bin/	
+	ls /usr/local/bin
+1.2 修改配置文件
+	vim /usr/local/etc/zabbix_agentd.conf
+93行
+	server=127.0.0.1,192.168.2.5 #允许访问服务地址列表
+134行
+	ServerActive=192.168.2.5:10051　＃监控服务器ip地址
+启动服务
+	useradd zabbix
+	zabbix_agentd
+	netstat -ntulp
+2　访问zabbix的web页面，添加监控主机
+	配置-主机-主机名称-可见的名称-新的群组-ip地址-其他默认
+2.1 应用监控配置模板
+	配置-模板-创建模板
+	配置-主机-主机名－模板
+2.2 监测中-最新数据-群组－主机－应用集不用选默认检测全部
+
+3 自定义监控
+3.1 被监控端修改Agent配置文件
+	vim /usr/local/etc/zabbix_agentd.conf
+280行 UnsafeUserParameters=1 #去掉注释允许自定义key
+264行 Include=/usr/local/etc/zabbix_agentd.conf.d/ #加载配置文件目录
+3.2 创建自定义key
+	vim /usr/local/etc/zabbix_agentd.conf.d/countf
+UserParameter=count.line.passwd,wc -l /etc/passwd | awk '{print $1}'
+#自定义key语法格式
+	wq
+3.3 重启agentd测试自定义key是否生效
+	killall -9 zabbix_agentd
+	zabbix_agentd
+	zabbix_get -s 127.0.0.1 -k count.line.passwd
+
+3.4 登录监控服务器的web管理页面，创建监控模板
+	配置-模板-创建模板-模板名称-可见名称-新的群组
+3.5　创建应用集
+	创建应用集－名称
+3.6 创建监控项目
+	配置-主机-监控项-创建监控向-项目名称-自定义key（必须以配置文件一致）-应用集选择刚刚创建的应用(Application)
+3.7 将模板关联主机
+	配置-主机-模板-选择-添加-更新
