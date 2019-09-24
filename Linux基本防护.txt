@@ -1,0 +1,104 @@
+chage -l 用户名				#查看用户信息
+chage -E yyyy-mm-dd 用户名		#指定失效日期(-1取消)
+chage -d 0 用户名				#首次登录强制修改密码
+
+passwd -S 用户名				#查看用户信息
+passwd -l 用户名				#锁定用户
+passwd -u 用户名				#解锁用户
+
+which 命令			#查看命令的绝对路径
+
+添加用户的默认配置文件:
+	vim /etc/login.defs
+
+伪装登录提示:
+	vim /etc/issue			#默认提示内核,操作系统版本信息
+	vim /etc/issue.net		#ssh远程登录提示
+
+程序和服务控制:
+	serives 服务 start			#启动服务
+	chkconfig 服务 on/off		#设置服务开机自启/不自启
+
+锁定,保护文件:
+	lsattr 文件名			#查看文件属性
+	chattr +i 文件名			#+/-/= i:不可变 a:仅可追加
+
+用户切换:
+	su [-] 用户名			#切换用户,-:是否切换环境
+	su [-] -c '命令' 用户名		#以切换用户的身份执行命令
+
+用户提权:
+	visudo						#打开提权配置文件,专用命令
+	vim /etc/sudoers					#提权配置文件,要强制保存
+		用户名 主机列表=命令列表[,NOPASSWORD:ALL]	#用户提权,命令用绝对路径,[...]执行提权命令不需要密码验证
+		%组名 主机列表=命令列表			#组提权
+		Defaults logfile="/var/log/sudo.log"	#启用sudo日志,记录提权命令使用记录
+	sudo -l						#查看提权命令
+	sudo 命令						#执行提权命令
+
+sudo别名设置:
+	vim /etc/sudoers
+		User_Alias 用户别名=用户名列表		#别名名称必须大写
+		Host_Alias 主机别名=主机名列表
+		Cmnd_Alias 命令别名=命令列表		#别名可以定义多个
+		用户别名 主机别名=命令别名...		#可以用别名提权,可以和普通格式混用
+
+ssh安全配置:
+	/etc/ssh/sshd_config
+		Port 端口						#更改默认端口
+		ListenAddress ip					#只接收该ip的访问请求
+		Protocol 2						#启用SSH V2版协议
+		PermitRootLogin no				#不允许root远程连接
+		UseDNS no						#不解析客户机地址
+		LoginGraceTime 2m					#登录限时
+		MaxAuthTries 3					#认证次数
+		AuthorizedKeysFile .ssh/authorized_keys	#秘钥对认证登录
+		PasswordAuthentication yes			#密码认证
+
+ssh黑白名单:
+	/etc/ssh/sshd_config
+		DenyUsers 用户1 用户2 ... ...			#禁止用户连接
+		DenyGroups 组1 组2 ... ...				#禁止组用户连接
+		AllowUsers 用户1@ip 用户2 ... ...			#允许用户[在指定ip]连接
+		AllowGroups 组1 组2 ... ...			#允许组用户连接
+
+SELinux安全防护上下文值:
+	上下文值格式:
+		用户:角色:访问类型:选项
+	安全上下文值:
+		ls -lZ 文件名					#查看文件上下文值
+		ls -ldZ 目录名					#查看目录上下文值
+		ps aux -Z | grep 进程名				#查看进程上下文值
+	安全上下文值一般规律:
+		创建目录或文件,继承父目录的安全上下文值访问类型
+		移动目录或文件,保持原有的安全上下文值访问类型不变
+		复制目录或文件,继承目标目录的安全上下文值访问类型
+	修改文件的安全上下文值的访问类型:
+		chcon -t 访问类型 文件名
+	恢复正确的安全上下文值:
+		restorecon 文件名
+	重启后全部重置安全上下文值:
+		touch /.autorelabel
+	复制其他文件的上下文值:
+		chcon -R --reference=模板目录 新目录
+
+SELinux安全防护布尔值:
+	布尔值策略:
+		getsebool -a | less	#查看服务功能开关
+	修改服务开关:
+		setsebool 服务名 on/off
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
