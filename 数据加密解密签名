@@ -1,0 +1,62 @@
+什么是加/解密
+	发送方	明文-密文
+	接收方	密文-明文
+
+加密的目的及方式
+	对称加密	加密/解密用同一个密钥
+	非对称加密	加密/解密用不同密钥
+	目的	基于输入的信息生成长度较短,位数固定的散列值
+
+常见的加密算法
+	对称加密	DES,AES
+	非对称加密	RSA,DSA
+
+ND5SUM校验工具
+	echo 123456789 > /a.txt
+	md5sum a.txt
+	b2cfa4183267af678ea06c7407d4d6d8  a.txt
+	
+	echo 10111213 >> /a.txt
+	md5sum a.txt
+	0ffc5fadc54c01d12bbb306653b634d4  a.txt
+	查看修改前后hash值是否一样,不一样代表文件被修改
+
+GnuPG简介
+	gpg	最流行的数据加密,数字签名工具软件
+	http://www.gnupg.org
+
+	gpg --version	查看版本
+	
+gpg对称加密/解密基本用法
+	创建两个普通用户	useradd a	useradd b
+	a用户将文件加密		gpg -c /a.test 
+	根据提示输入两次密码要求一致	123456 	123456
+	将文件移动至公共目录	mv /a.txt.gpg /tmp
+	b用户解密文件		gpg -d /tmp/a.txt.gpg
+	根据提示验证密码	123456
+
+gpg非对称加密
+	创建秘钥队,需要大量随机数	mv /dev/random random1 ln -s /dev/urandom /dev/random	
+	b用户创建秘钥对		gpg --gen-key  	创建密码保护私钥	123456
+	b用户导出公钥		gpg --export -a > b.pub
+	将公钥移动至公共目录	mv b.pub /tmp
+
+	a用户导入公钥		gpg --import /tmp/b.pub
+	a用户创建加密文件	echo 123456789 > b.txt	
+	加密			gpg -e -r b(使用用户b的私钥加密) b.txt
+	将文件移动至公共目录	mv b.txt /tmp
+	
+	b用户解密		pgp -d /tmp/b.txt
+
+数字签名	要有私钥的用户进行签名
+	b用户			echo 987654321 > /c.txt
+	b用户进行数字签名	gpg -b /c.txt
+	将文件以及数字签名文件移动至公共目录	
+				mv /c.txt /tmp		mv /c.txt.sig /tmp
+	拥有公钥的用户进行验证签名	gpg --verify /tmp/c.txt.sig
+ 	修改c.txt文件在进行签名验证	echo 111 >> c.txt
+	重新验证数字签名		gpg --verify /tmp/c.txt.sig
+	验证失败说明文件被篡改过
+
+
+	

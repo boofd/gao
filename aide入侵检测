@@ -1,0 +1,46 @@
+AIDE该软件为一套入侵检测系统
+配置yum源即可安装aide软件
+
+yum -y install	 aide 
+
+1	修改配置文件
+	AIDE默认配置文件为/etc/aide.conf
+	vim /etc/aide.conf
+	@@define DBDIR /var/lib/aide	//定义变量为数据库的目录路径
+	@@define LOGDIR /var/log/aide	//定义变量为日志目录的路径
+	database_out=dile:@@{DBDIR}/aide.db.new.gz	//数据库目录文件名
+
+希望检查的项目
+	#p:	permissions
+	#i:	inode:
+	#n:	number of links
+	#u	user
+	#g:	group
+	#s:	size
+	#md5	md5 checkusm
+	#sha1:  sha1 checksum
+	#sha256	sha256 checksum
+	FIPSR=p+i+n+u+g+s+m+c+acl+selinux+xattrs+sha256
+对哪些目录进行哪些检测
+	/boot	NORMAL
+	/bin	NORMAL
+	/sbin	NORMAL
+	/lib	NORMAL
+	/lib64	NORMAL
+	/opt 	NORMAL
+	/usr	NORMAL
+	/root	NORMAL
+设置 ! ,设置不效验的目录
+	!/usr/src
+	!/usr/tmp
+	wq	保存
+	sed -i '99,312s/^/#/' /etc/aide.conf#仅测试,默认检查的内容太多,全部注释,手动设置检查目录及规则
+	vim +98 /etc/aide.conf
+	/root/	FIPSR	
+	wq	保存退出
+2	初始化检查,生成初始检查信息	aide --init
+	备份原始信息			mv /var/lib/aide.new.db.gz /opt
+	cp /opt/aide.new.db.gz /var/lib	/aide.db.gz
+	创建文件			echo 123456 > /root/test.txt
+	对照原始信息按照规则进行检测是否入侵	aide --check
+
