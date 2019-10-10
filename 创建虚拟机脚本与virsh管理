@@ -1,0 +1,101 @@
+虚拟化概念
+	x个物理资源--y个逻辑资源	x不能大于y
+	实现程度:完全,部分,硬件辅助
+必备软件
+	qemu-kvm	为kvm提供底层仿真支持
+	libvirt-daemon	libvirtd守护进程,管理虚拟机
+	libvirt-client	用户端软件,提供客户端管理命令
+	livvirt-daemon-driver-qemu	libvirtd链接qemu的驱动
+
+yum -y install 	qemu-kvm 
+		libvirt-daemon 
+		libvirt-client	
+		libvirt-daemon-driver
+		systemctl start libvirtd
+
+虚拟机由一个XML文件(虚拟机配置声明文件)
+	/etc/libvirt/qemu/
+一个磁盘镜像文件(续集你的硬盘)
+	/var/lib/libvirt/images
+
+virsh命令工具介绍
+	virsh虚拟机管理
+	virsh list --all 	列出所有虚拟机
+	virsh start node1	开启虚拟机node1
+	virsh shutdown node1	关闭虚拟机node1
+	virsh reboot node1	重启虚拟机node1
+	virsh destroy node1	强制关机node1
+	virsh define /etc/libvirt/qemu/node1.xml	定义区域创建虚拟机
+	virsh clonsole node1	链接虚拟机node1
+
+	virsh edit node1	修改虚拟机node1配置
+	virsh autostart node1 	设置虚拟机node1开机自启
+	virsh domiflist node1	查看虚拟机node1的虚拟网卡信息
+	virsh domblklist node1 	查看虚拟机node1硬盘信息
+
+	virsh net-list all	列出所有虚拟网络
+	virsh net-start vbr	启动虚拟交换机vbr
+	virsh net-destroy vbr	强制关闭虚拟交换机
+	virsh -edit vbr		修改虚拟交换机的配置
+	virsh net-autostart vbr 设置虚拟交换机自动启动
+
+qemu-img 命令
+	qemu-img 命令 参数 块文件名称 大小
+qemu-img create -b /var/lib/libvirt/images/.node_base.img -f qcow2 test.img 50G
+
+	qemu-img info test.img	查看磁盘镜像文件信息
+	-b  /var/lib/libvirt/images/.node_base.img 使用后端模板文件
+创建XML文件
+对虚拟机的配置进行调整
+	virsh edit node1
+<domain type='kvm'>
+  <name>node1</name>	虚拟机名字
+  <uuid>b067967d-38cb-4a0e-a6aa-d6e03e4154d3</uuid>
+  <memory unit='KiB'>1488282</memory>	最大可用内存
+  <currentMemory unit='KiB'>1488282</currentMemory>	现在使用内存
+  <vcpu placement='static'>2</vcpu>	cpu数量
+
+<source file='/var/lib/libvirt/images/0.img'/>	指定块设备
+
+创建一个虚拟机
+cd /var/lib/libvirt/images 进入目录
+qemu-img create -b /.node_base.img -f qcow2 node1.img 20G 创建硬盘
+修改xml文件
+cp /var/lib/libvirt/images/.node_base.xml /etc/libvirt/qemu/node1.xml
+sed -i 's/node_base/node1/' /etc/libvirt/qemu/node1.xml 把所有node_base修改为node1
+
+定义xml文件
+virsh define /etc/libvirt/qemu/node1.xml
+开启虚拟机
+virsh start node1
+
+virsh扩容磁盘
+	virsh domblklist node1	查看虚拟机硬盘信息
+	virsh blockresize --path /var/lib/libvirt/images/node1.img --size 50G node1  	指定虚拟机node1硬盘扩容到50G
+
+根分区扩容
+	virsh clonsole node1	连接到虚拟机node1
+	growpart /dev/vda 1	扩容一个分区
+	xfs_growfs /		扩容文件系统
+	df -h			查看扩容结果
+
+自动创建虚拟机脚本
+
+#!/bin/bash
+function cl {
+vhost=$1
+cd /var/lib/libvirt/images/
+qemu-img create -f qcow2 -b .node_base.qcow2 ${vhost}.img 20G
+cp /var/lib/libvirt/images/.node_base.xml /etc/libvirt/qemu/${vhost}.xml
+sed -i "s#node_base#${vhost}#" /etc/libvirt/qemu/${vhost}.xml
+virsh define /etc/libvirt/qemu/${vhost}.xml
+virsh list --all
+}
+if [ $# -eq 0 ];then
+echo "请输入参数"
+else
+for i in $@
+do
+cl ${i}
+done
+fi
