@@ -1,0 +1,100 @@
+ansible可是实现
+	自动化部署app
+	自动化管理配置项
+	自动化持续交付
+	自动化云服务管理
+ansible优点
+	只需要SSH和Python即可使用
+	无客户端
+	ansible功能强大 模块丰富
+	上手容易,门槛低
+	基于Python开发,做二次开发容易
+	使用公司比较多,社区活跃
+ansible特性
+	模块化设计,调用特定的模块完成特定任务
+	其模块支持JSON等标准输出格式,可以采用任何编程语言重写
+
+
+环境准备	六台虚拟机
+ansible		192.168.1.40	管理主机
+web1		192.168.1.41	托管主机
+web2		192.168.1.42	托管主机
+db1		192.168.1.43	托管主机
+db2		192.168.1.44	托管主机
+cache		192.168.1.45	托管主机
+
+1.	ansible管理主机安装
+	yum -y install ansible
+
+2.	修改ansible.cfg配置文件
+14行	inventory      = /etc/ansible/hosts 定义托管主机地址配置文件路径名
+61行	host_key_checking = False 	ssh主机key验证配置参数,如果为False,则不需要输入yes
+
+3.	主机定义与分组
+	vim /etc/ansible/hosts
+	[web]
+	web1
+	web2
+	[db]
+	db[1:2]
+	[other]
+	cache
+4.	主机名解析,所有机器都要同步配置
+	vim /etc/hosts
+	192.168.1.40 ansible
+	192.168.1.41 web1
+	192.168.1.42 web2
+	192.168.1.43 db1
+	192.168.1.44 db2
+	192.168.1.45 cache
+5.	ansible命令格式
+	ansible 主机集合 -m 模块名称 -a 模块参数
+
+	ansible all --list-hosts	列出要执行的主机
+	ansible all -m ping -k		批量检测主机是否连接
+6.	创建秘钥对
+	ssh-keygen -t rsa -b 2048 -N"" -f key
+6.1	给所有主机部署公钥
+	ssh-copy-id -i key.pub web1
+	ssh-copy-id -i key.pub web2
+	ssh-copy-id -i key.pub db1
+	ssh-copy-id -i key.pub db2
+	ssh-copy-id -i key.pub cache
+7.	引用变量,给所有主机指定私钥解密
+	vim /etc/ansible/hosts
+	[all:vars]
+	ansible_ssh_private_key_file="/root/.ssh/key
+配置完成 可以正常使用ansible为正确
+
+自定义配置文件
+	vim /tmp/ansible.cfg
+	[default]
+	inventory=myhost
+	host_key_checking = False
+	
+	vim /tmp/hosts
+	[zdy]
+	web1
+	db1
+	cache
+测试自定义配置组是否可以可连接
+	ansible zdy -m ping -k
+
+使用shell模块批量给机器添加一个用户
+	ansible all -m shell -a 'useradd zhangsan;echo 123 | passwd --stdin zhangsan'
+
+使用yum模块批量给机器安装mariadb软件包
+	ansible all -m yum -a 'name=mariadb state=installed'
+
+使用service模块批量给机器启动服务,并设置开机自启
+	ansible all -m service -a 'name=mariadb state=started enabled=yes'
+
+使用copy模块批量给机器复制文件
+	ansible all -m copy -a 'src=/etc/resolv.conf dest=/etc/'
+
+使用lineinfile模块批量给机器修改配置文件
+	ansible all -m lineinfile -a 'path=/etc/my.cnf regexp="=mixed$" line="binglog-format=row"'
+	path是要修改的文件 regexp是正则匹配以 minxed结尾的行 line是修改后的
+
+使用replace模块批量给机器修改配置文件
+	ansible all -m replace -a 'path=/etc/my.cnf regexp='row' replace="mixed"'
