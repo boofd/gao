@@ -1,0 +1,123 @@
+Hadoop是什么
+	Hadoop是一种分析和处理海量数据的软件平台
+	Hadoop是一款开元软件,使用java开发
+	Hadoop可以提供一个分布式基础架构
+
+Hadoop特点
+	高可靠性,高扩展性.高效性.高容错性,低成本
+Hadoop的部署模式有三种
+	单机
+	伪分布式
+	完全分布式
+	
+单机模式:
+	准备一台虚拟机 nn01 192.168.1.60
+1.	获取软件	:http://hadoop.apache.org
+2.	安装jps工具,部署java环境 yum -y install java-1.8.0-openjdk-devel
+3.	安装hadoop	tar -xf hadoop.ar.gz
+			mv hadoop.2.7.7 /usr/local/hadoop
+4.	查看java安装位置与hadoop配置文件路径
+			rpm -ql java-1.8.0-openjdk
+			ls /usr/local/hadoop/etc/hadoop
+5.修改配置文件,设置环境变量,启动运行
+			vim /usr/local/hadoop/etc/hadoop/hadoop-env.sh
+	25行: 		export JAVA_HOME="/usr/lib/jvm/java-1.8.0-openjdk-1.8.0.161-2.b14.el7.x86_64/jre" #java的安装路径
+	34行:		export HADOOP_CONF_DIR="/usr/local/hadoop/etc/hadoop"
+			#hadoop配置文件的路径
+6.	创建一个目录	mkdir /usr/local/hadoop/input
+	导入数据文件	cat /etc/shadow > /usr/local/hadoop/input/123.txt
+7.测试,统计词频		cd /usr/local/hadoop
+			./bin/hadoop jar share/hadoop/mapreduce/hadoop-mapreduce-examples-2.7.7.jar wordcount input output
+	#解析input这个文件的 词的频率 解析结果放至 output这个目录 
+
+完全分布式部署
+	准备四台虚拟机,由于之前已经准备过一台,所以只需在准备三台新的虚拟机即可,安装hadoop,使所有节点可以ping通,配置ssh信任关系
+	nn01	192.168.1.60
+	node1	192.168.1.61
+	node2	192.168.1.62
+	node3	192.168.1.63
+1.	环境准备 (斯台主机同样操作,以nn01为列)
+		vim /etc/hosts
+		192.168.1.60 nn01
+		192.168.1.61 node1
+		192.168.1.62 node2
+		192.168.1.63 node3
+
+2.	安装java环境,在node1,node2,node3操作(以node1为例)
+		yum -y install java-1.8.0.openjdk-devel
+
+3.部署SSh信任关系
+		vim /etc/ssh/ssh_config
+		StrictHostKeyChecking no #链接时不需要输入yes
+		cd /root/.ssh
+		ssh-keygen	#创建密钥对
+		for i in nn01 node1 node2 node3
+		do
+		ssh-copy-id $i
+		done
+
+4.HDFS完全分布式系统配置 (四台同步配置,以nn01为例)
+
+参数配置查找:	hadoop.apache.org/docs
+
+		环境配置文件	hadoop-env.sh
+		vim /usr/local/hadoop/etc/hadoop/hadoop-env.sh
+        25行:           export JAVA_HOME="/usr/lib/jvm/java-1.8.0-openjdk-1.8.0.161-2.b14.el7.x86_64/jre" #java的安装路径
+        34行:           export HADOOP_CONF_DIR="/usr/local/hadoop/etc/hadoop"
+                        #hadoop配置文件的路径
+		核心配置文件	core-site.xml
+		vim /usr/local/hadoop/etc/hadoop/core-site.xml
+		<configuration>
+<property>
+        <name>fs.defaultFS</name>
+        <value>hdfs://nn01:9000</value>
+    </property>
+    <property>
+        <name>hadoop.tmp.dir</name>
+        <value>/var/hadoop</value>
+    </property>
+</configuration>
+		HDFS配置文件	hdfs-site.xml
+		vim /usr/local/hadoop/etc/hadoop/core-site.xml
+		<configuration>
+ <property>
+        <name>dfs.namenode.http-address</name>
+        <value>nn01:50070</value>
+    </property>
+    <property>
+        <name>dfs.namenode.secondary.http-address</name>
+        <value>nn01:50090</value>
+    </property>
+    <property>
+        <name>dfs.replication</name>
+        <value>2</value>
+    </property>
+</configuration>
+		节点配置文件	slaves
+		vim /usr/local/hadoop/etc/hadoop/slaves
+		删除localhost这一行
+		只写DATANODE节点主机名称
+		node1
+		node2
+		node3
+	四台机器同步配置,也可以先配置一台,然后发送至另外三台
+
+5.	在本机创建/var/hadoop/文件夹
+	mkdir /var/hadoop
+
+6.	在nn01上执行格式化操作
+	/usr/local/hadoop/bin/hdfs namenode -format
+	#出现 info字样没有error war 等字样代表配置正确
+
+7.	启动集群
+	/sur/local/hadoop/sbin/start-dfs.sh
+
+8.	验证角色
+	jps
+	23408 NameNode
+	23700 Jps
+	23591 SecondaryNameNode
+
+9.	查看集群是否组建成功
+	/usr/local/hadoop/bin/hdfs dfsadmin -report
+	Live datanodes (3):        //有三个角色成功
