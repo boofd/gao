@@ -1,0 +1,9 @@
+终端安全windows:
+https://172.16.0.122
+账号管理员  administrator  密码:Password$123
+系统管理员  venus_qmyw   密码:Password$123
+
+
+
+mac：https://172.16.0.123:8447    ucssadmin/firewall
+admin    Password$123
